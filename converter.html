@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conversor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f3ef;--surface:#ffffff;--border:#e2dfd8;--border-h:#c8c4bc;
+  --text:#1a1916;--muted:#8a8780;--pill:#eceae5;--pill-h:#e2dfd8;
+  --active:#1a1916;--active-fg:#f5f3ef;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.04);
+  --sdrop:0 12px 40px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.06);
+  --r:14px;--mono:'DM Mono',monospace;--sans:'Instrument Sans',sans-serif;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#111110;--surface:#1c1b19;--border:#2e2d2a;--border-h:#4a4844;
+  --text:#f0ede8;--muted:#6b6860;--pill:#252420;--pill-h:#2e2d2a;
+  --active:#f0ede8;--active-fg:#111110;
+  --shadow:0 1px 4px rgba(0,0,0,.3),0 4px 20px rgba(0,0,0,.2);
+  --sdrop:0 12px 40px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.3);
+}}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+body{display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:40px 16px 80px}
+
+header{text-align:center;margin-bottom:40px}
+.wordmark{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+h1{font-size:clamp(30px,6vw,54px);font-weight:600;letter-spacing:-.03em;line-height:1}
+h1 em{font-style:normal;color:var(--muted)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;width:100%;max-width:720px;padding:28px 28px 24px;box-shadow:var(--shadow)}
+
+/* grid */
+.row{display:grid;grid-template-columns:1fr 44px 1fr;gap:10px;align-items:start}
+.col-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;padding-left:2px}
+
+/* trigger */
+.picker{position:relative}
+.trigger{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--pill);border:1.5px solid transparent;border-radius:var(--r);padding:11px 14px;cursor:pointer;user-select:none;transition:border-color .15s,border-radius .15s}
+.trigger:hover{border-color:var(--border-h)}
+.trigger.open{border-color:var(--text);border-radius:var(--r) var(--r) 0 0;border-bottom-color:transparent}
+.t-text{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.t-unit{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t-cat{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.05em}
+.t-arr{color:var(--muted);flex-shrink:0;transition:transform .18s}
+.trigger.open .t-arr{transform:rotate(180deg)}
+
+/* panel */
+.panel{position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1.5px solid var(--text);border-top:none;border-radius:0 0 var(--r) var(--r);box-shadow:var(--sdrop);display:none;flex-direction:column;max-height:400px;overflow:hidden}
+.panel.open{display:flex}
+
+.search-wrap{padding:9px 10px 7px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.search-input{width:100%;background:var(--pill);border:none;border-radius:8px;padding:8px 12px;font-family:var(--sans);font-size:13px;color:var(--text);outline:none}
+.search-input::placeholder{color:var(--muted)}
+
+.scroll{overflow-y:auto;flex:1}
+.scroll::-webkit-scrollbar{width:4px}
+.scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.cg{padding:4px 0}
+.cg+.cg{border-top:1px solid var(--border)}
+.cg-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:8px 14px 3px}
+.opt{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;cursor:pointer;font-size:13.5px;transition:background .1s}
+.opt:hover:not(.disabled){background:var(--pill-h)}
+.opt.selected{background:var(--active);color:var(--active-fg)}
+.opt.selected .sym{color:var(--active-fg);opacity:.5}
+.opt.disabled{opacity:.25;pointer-events:none}
+.opt.hidden{display:none}
+.sym{font-family:var(--mono);font-size:11px;color:var(--muted);flex-shrink:0;margin-left:8px}
+
+/* swap */
+.swap-col{display:flex;align-items:center;justify-content:center;padding-top:22px}
+.swap-btn{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.swap-btn:hover{border-color:var(--text);color:var(--text);transform:rotate(180deg)}
+.swap-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* inputs */
+.inputs-row{display:grid;grid-template-columns:1fr 44px 1fr;gap:10px;margin-top:14px;align-items:center}
+.vwrap{position:relative}
+.vinput{width:100%;background:var(--pill);border:1.5px solid transparent;border-radius:var(--r);padding:15px 52px 15px 15px;font-family:var(--mono);font-size:22px;font-weight:400;color:var(--text);outline:none;transition:border-color .15s;-moz-appearance:textfield}
+.vinput::-webkit-outer-spin-button,.vinput::-webkit-inner-spin-button{-webkit-appearance:none}
+.vinput:focus{border-color:var(--text)}
+.vinput.out{color:var(--muted);cursor:default}
+.vsym{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--muted);pointer-events:none}
+.eq{text-align:center;font-family:var(--mono);font-size:16px;color:var(--muted)}
+
+/* formula */
+.formula{margin-top:16px;padding:12px 15px;background:var(--pill);border-radius:10px;font-family:var(--mono);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:7px;transition:color .2s}
+.formula.live{color:var(--text)}
+.fdot{width:5px;height:5px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .2s}
+.formula.live .fdot{background:var(--text)}
+
+/* overlay */
+.overlay{position:fixed;inset:0;z-index:100;display:none}
+.overlay.on{display:block}
+
+@media(max-width:520px){
+  body{padding:24px 12px 60px}
+  .card{padding:18px 14px 18px}
+  .row,.inputs-row{grid-template-columns:1fr 36px 1fr;gap:8px}
+  .swap-col{padding-top:18px}
+  .swap-btn{width:32px;height:32px}
+  .vinput{font-size:18px;padding:13px 42px 13px 12px}
+}
+</style>
+</head>
+<body>
+<div class="overlay" id="overlay"></div>
+
+<header>
+  <div class="wordmark">Conversor Universal</div>
+  <h1>Con<em>vert</em></h1>
+</header>
+
+<div class="card">
+  <div class="row">
+    <div>
+      <div class="col-label">De</div>
+      <div class="picker" id="pFrom"></div>
+    </div>
+    <div class="swap-col">
+      <button class="swap-btn" id="swapBtn">
+        <svg viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4 4 4M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+      </button>
+    </div>
+    <div>
+      <div class="col-label">Para</div>
+      <div class="picker" id="pTo"></div>
+    </div>
+  </div>
+
+  <div class="inputs-row">
+    <div class="vwrap">
+      <input class="vinput" id="inVal" type="number" placeholder="0" inputmode="decimal">
+      <span class="vsym" id="inSym"></span>
+    </div>
+    <div class="eq">=</div>
+    <div class="vwrap">
+      <input class="vinput out" id="outVal" type="number" placeholder="—" readonly>
+      <span class="vsym" id="outSym"></span>
+    </div>
+  </div>
+
+  <div class="formula" id="formula">
+    <span class="fdot"></span>
+    <span id="fTxt">Selecione as unidades e insira um valor.</span>
+  </div>
+</div>
+
+<script>
+const C={
+  temperatura:{label:'Temperatura',units:{
+    celsius:{label:'Celsius',sym:'°C'},fahrenheit:{label:'Fahrenheit',sym:'°F'},kelvin:{label:'Kelvin',sym:'K'}
+  },convert(v,f,t){let c=f==='celsius'?v:f==='fahrenheit'?(v-32)*5/9:v-273.15;return t==='celsius'?c:t==='fahrenheit'?c*9/5+32:c+273.15}},
+  comprimento:{label:'Comprimento',units:{
+    metro:{label:'Metro',sym:'m'},centimetro:{label:'Centímetro',sym:'cm'},milimetro:{label:'Milímetro',sym:'mm'},
+    kilometro:{label:'Quilômetro',sym:'km'},polegada:{label:'Polegada',sym:'in'},pe:{label:'Pé',sym:'ft'},
+    jarda:{label:'Jarda',sym:'yd'},milha:{label:'Milha',sym:'mi'},milha_naut:{label:'Milha náutica',sym:'nmi'},
+    angstrom:{label:'Ångström',sym:'Å'}
+  },b:{metro:1,centimetro:.01,milimetro:.001,kilometro:1000,polegada:.0254,pe:.3048,jarda:.9144,milha:1609.344,milha_naut:1852,angstrom:1e-10},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  massa:{label:'Massa',units:{
+    kilograma:{label:'Quilograma',sym:'kg'},grama:{label:'Grama',sym:'g'},miligrama:{label:'Miligrama',sym:'mg'},
+    tonelada:{label:'Tonelada',sym:'t'},libra:{label:'Libra',sym:'lb'},onca:{label:'Onça',sym:'oz'},pedra:{label:'Stone',sym:'st'}
+  },b:{kilograma:1,grama:.001,miligrama:1e-6,tonelada:1000,libra:.453592,onca:.0283495,pedra:6.35029},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  area:{label:'Área',units:{
+    metro2:{label:'Metro²',sym:'m²'},centimetro2:{label:'Centímetro²',sym:'cm²'},kilometro2:{label:'Quilômetro²',sym:'km²'},
+    hectare:{label:'Hectare',sym:'ha'},pe2:{label:'Pé²',sym:'ft²'},polegada2:{label:'Polegada²',sym:'in²'},
+    milha2:{label:'Milha²',sym:'mi²'},acre:{label:'Acre',sym:'ac'}
+  },b:{metro2:1,centimetro2:1e-4,kilometro2:1e6,hectare:1e4,pe2:.092903,polegada2:6.4516e-4,milha2:2589988.11,acre:4046.856},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  volume:{label:'Volume',units:{
+    litro:{label:'Litro',sym:'L'},mililitro:{label:'Mililitro',sym:'mL'},metro3:{label:'Metro³',sym:'m³'},
+    galao_us:{label:'Galão (US)',sym:'gal'},quartilho:{label:'Quartilho',sym:'qt'},
+    xicara:{label:'Xícara (US)',sym:'cup'},col_sopa:{label:'Colher de sopa',sym:'tbsp'},
+    col_cha:{label:'Colher de chá',sym:'tsp'},fl_oz:{label:'Fl. onça',sym:'fl oz'}
+  },b:{litro:1,mililitro:.001,metro3:1000,galao_us:3.78541,quartilho:.946353,xicara:.236588,col_sopa:.0147868,col_cha:.00492892,fl_oz:.0295735},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  velocidade:{label:'Velocidade',units:{
+    ms:{label:'Metro / segundo',sym:'m/s'},kmh:{label:'Quilômetro / h',sym:'km/h'},
+    mph:{label:'Milha / hora',sym:'mph'},no:{label:'Nó',sym:'kn'},mach:{label:'Mach',sym:'M'},fps:{label:'Pé / segundo',sym:'ft/s'}
+  },b:{ms:1,kmh:.277778,mph:.44704,no:.514444,mach:343,fps:.3048},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  moeda:{label:'Moeda',units:{
+    brl:{label:'Real',sym:'R$'},usd:{label:'Dólar (USD)',sym:'US$'},eur:{label:'Euro',sym:'€'},
+    gbp:{label:'Libra esterlina',sym:'£'},jpy:{label:'Iene',sym:'¥'},cad:{label:'Dólar canadense',sym:'CA$'},
+    aud:{label:'Dólar australiano',sym:'A$'},chf:{label:'Franco suíço',sym:'CHF'},cny:{label:'Yuan',sym:'¥'},
+    ars:{label:'Peso argentino',sym:'AR$'},mxn:{label:'Peso mexicano',sym:'MX$'},clp:{label:'Peso chileno',sym:'CLP'}
+  },r:{brl:.193,usd:1,eur:1.085,gbp:1.272,jpy:.0067,cad:.736,aud:.645,chf:1.126,cny:.138,ars:.00096,mxn:.052,clp:.001},
+  convert(v,f,t){return v*this.r[f]/this.r[t]}},
+  pressao:{label:'Pressão',units:{
+    pascal:{label:'Pascal',sym:'Pa'},kpa:{label:'Kilopascal',sym:'kPa'},bar:{label:'Bar',sym:'bar'},
+    atm:{label:'Atmosfera',sym:'atm'},psi:{label:'PSI',sym:'psi'},mmhg:{label:'mmHg',sym:'mmHg'},mbar:{label:'Milibar',sym:'mbar'}
+  },b:{pascal:1,kpa:1000,bar:1e5,atm:101325,psi:6894.76,mmhg:133.322,mbar:100},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  energia:{label:'Energia',units:{
+    joule:{label:'Joule',sym:'J'},cal:{label:'Caloria',sym:'cal'},kcal:{label:'Quilocaloria',sym:'kcal'},
+    kwh:{label:'Quilowatt-hora',sym:'kWh'},btu:{label:'BTU',sym:'BTU'},ev:{label:'Elétron-volt',sym:'eV'}
+  },b:{joule:1,cal:4.184,kcal:4184,kwh:3600000,btu:1055.06,ev:1.602e-19},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+  dados:{label:'Dados',units:{
+    bit:{label:'Bit',sym:'b'},byte:{label:'Byte',sym:'B'},kilobyte:{label:'Kilobyte',sym:'KB'},
+    megabyte:{label:'Megabyte',sym:'MB'},gigabyte:{label:'Gigabyte',sym:'GB'},
+    terabyte:{label:'Terabyte',sym:'TB'},petabyte:{label:'Petabyte',sym:'PB'}
+  },b:{bit:1,byte:8,kilobyte:8192,megabyte:8388608,gigabyte:8589934592,terabyte:8796093022208,petabyte:9007199254740992},
+  convert(v,f,t){return v*this.b[f]/this.b[t]}},
+};
+
+let state={from:{cat:null,unit:null},to:{cat:null,unit:null}};
+let openSide=null;
+
+function fmt(n){
+  if(n===null||isNaN(n))return'';
+  if(Math.abs(n)>=1e9||(Math.abs(n)<.0001&&n!==0))return parseFloat(n.toPrecision(6)).toExponential();
+  return parseFloat(n.toPrecision(8)).toString();
+}
+function uInfo(cat,unit){return C[cat]?.units[unit]}
+
+/* --- BUILD --- */
+function buildPicker(side){
+  const el=document.getElementById(side==='from'?'pFrom':'pTo');
+  el.innerHTML=`
+    <div class="trigger" id="tr-${side}">
+      <div class="t-text">
+        <span class="t-unit" id="tu-${side}">Selecionar unidade</span>
+        <span class="t-cat" id="tc-${side}">—</span>
+      </div>
+      <svg class="t-arr" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="panel" id="pan-${side}">
+      <div class="search-wrap">
+        <input class="search-input" id="si-${side}" placeholder="Buscar unidade…" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="scroll">
+        ${Object.entries(C).map(([ck,cat])=>`
+          <div class="cg" data-cat="${ck}" id="cg-${side}-${ck}">
+            <div class="cg-title">${cat.label}</div>
+            ${Object.entries(cat.units).map(([uk,u])=>`
+              <div class="opt" data-cat="${ck}" data-unit="${uk}" id="opt-${side}-${ck}-${uk}">
+                <span>${u.label}</span><span class="sym">${u.sym}</span>
+              </div>`).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  el.querySelector('.trigger').addEventListener('click',()=>toggle(side));
+  el.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{
+    if(o.classList.contains('disabled'))return;
+    pick(side,o.dataset.cat,o.dataset.unit);
+    closeAll();
+  }));
+  document.getElementById(`si-${side}`).addEventListener('input',e=>search(side,e.target.value));
+}
+
+/* --- OPEN/CLOSE --- */
+function toggle(side){
+  if(openSide===side){closeAll();return}
+  closeAll();
+  openSide=side;
+  document.getElementById(`tr-${side}`).classList.add('open');
+  document.getElementById(`pan-${side}`).classList.add('open');
+  document.getElementById('overlay').classList.add('on');
+  setTimeout(()=>document.getElementById(`si-${side}`).focus(),50);
+}
+function closeAll(){
+  ['from','to'].forEach(s=>{
+    document.getElementById(`tr-${s}`)?.classList.remove('open');
+    document.getElementById(`pan-${s}`)?.classList.remove('open');
+    const si=document.getElementById(`si-${s}`);
+    if(si){si.value='';search(s,'');}
+  });
+  document.getElementById('overlay').classList.remove('on');
+  openSide=null;
+}
+
+/* --- SEARCH --- */
+function search(side,q){
+  const t=q.toLowerCase().trim();
+  document.querySelectorAll(`#pan-${side} .cg`).forEach(cg=>{
+    let any=false;
+    cg.querySelectorAll('.opt').forEach(o=>{
+      const match=!t||o.querySelector('span').textContent.toLowerCase().includes(t)||o.querySelector('.sym').textContent.toLowerCase().includes(t);
+      o.classList.toggle('hidden',!match);
+      if(match)any=true;
+    });
+    cg.style.display=any?'':'none';
+  });
+}
+
+/* --- PICK --- */
+function pick(side,catKey,unitKey){
+  const other=side==='from'?'to':'from';
+  state[side]={cat:catKey,unit:unitKey};
+  // reset other side if different category
+  if(state[other].cat&&state[other].cat!==catKey){
+    state[other]={cat:null,unit:null};
+    setTrigger(other,null,null);
+  }
+  setTrigger(side,catKey,unitKey);
+  markSelected();
+  compute();
+}
+
+function setTrigger(side,cat,unit){
+  const u=cat?uInfo(cat,unit):null;
+  document.getElementById(`tu-${side}`).textContent=u?u.label:'Selecionar unidade';
+  document.getElementById(`tc-${side}`).textContent=cat?C[cat].label:'—';
+}
+
+/* --- MARK SELECTED --- */
+function markSelected(){
+  ['from','to'].forEach(side=>{
+    const {cat,unit}=state[side];
+    document.querySelectorAll(`#pan-${side} .opt`).forEach(o=>{
+      o.classList.toggle('selected',o.dataset.cat===cat&&o.dataset.unit===unit);
+    });
+  });
+}
+
+/* --- COMPUTE --- */
+function compute(){
+  const {from,to}=state;
+  const inEl=document.getElementById('inVal');
+  const outEl=document.getElementById('outVal');
+  const inSym=document.getElementById('inSym');
+  const outSym=document.getElementById('outSym');
+  const formula=document.getElementById('formula');
+  const fTxt=document.getElementById('fTxt');
+
+  inSym.textContent=from.unit?uInfo(from.cat,from.unit).sym:'';
+  outSym.textContent=to.unit?uInfo(to.cat,to.unit).sym:'';
+
+  if(!from.unit||!to.unit){
+    outEl.value='';formula.classList.remove('live');
+    fTxt.textContent='Selecione as unidades e insira um valor.';return;
+  }
+  const val=parseFloat(inEl.value);
+  if(isNaN(val)||inEl.value===''){
+    outEl.value='';formula.classList.remove('live');
+    fTxt.textContent='Insira um valor para converter.';return;
+  }
+  const result=from.unit===to.unit?val:C[from.cat].convert(val,from.unit,to.unit);
+  outEl.value=fmt(result);
+  const fU=uInfo(from.cat,from.unit),tU=uInfo(to.cat,to.unit);
+  formula.classList.add('live');
+  fTxt.textContent=`${fmt(val)} ${fU.sym}  =  ${fmt(result)} ${tU.sym}`;
+}
+
+/* --- SWAP --- */
+document.getElementById('swapBtn').addEventListener('click',()=>{
+  const tmp=state.from;
+  state.from=state.to;state.to=tmp;
+  setTrigger('from',state.from.cat,state.from.unit);
+  setTrigger('to',state.to.cat,state.to.unit);
+  const prev=document.getElementById('outVal').value;
+  document.getElementById('inVal').value=prev;
+  markSelected();compute();
+});
+
+document.getElementById('inVal').addEventListener('input',compute);
+document.getElementById('overlay').addEventListener('click',closeAll);
+
+buildPicker('from');
+buildPicker('to');
+</script>
+</body>
+</html>
